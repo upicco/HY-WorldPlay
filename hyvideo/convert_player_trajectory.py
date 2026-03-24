@@ -161,17 +161,26 @@ def convert(args):
     c2ws_rel = [T0_inv @ c2w for c2w in c2ws_abs]
 
     # ── Step 5: scale translations ──
-    # Compute average per-step translation magnitude
+    # Source engine: 1 unit = 1 inch = 0.0254 meters.
+    # HY-World's built-in forward_speed=0.08/step is a slow camera drift;
+    # real FPS gameplay at ~250 units/sec gives ~0.35-0.4 meters/step,
+    # which is about 4-5x the default w speed. Using physical unit
+    # conversion (inches→meters) preserves the original movement speed.
+    INCHES_TO_METERS = 0.0254
+
     steps = []
     for i in range(1, len(c2ws_rel)):
         t = np.linalg.norm(c2ws_rel[i][:3, 3] - c2ws_rel[i - 1][:3, 3])
         steps.append(t)
 
     if args.scale_factor == "auto":
-        avg_step = np.mean(steps) if steps and np.mean(steps) > 1e-8 else 1.0
-        target_step = 0.08
-        scale = target_step / avg_step
-        print(f"Auto scale: avg_step={avg_step:.6f}, scale_factor={scale:.6f}")
+        # Convert Source engine units (inches) to meters
+        scale = INCHES_TO_METERS
+        avg_step_src = np.mean(steps) if steps else 0.0
+        avg_step_scaled = avg_step_src * scale
+        print(f"Auto scale: Source→meters (scale={scale})")
+        print(f"  avg step: {avg_step_src:.4f} Source units → {avg_step_scaled:.4f} meters/step")
+        print(f"  (HY-World default w speed = 0.08/step for reference)")
     else:
         scale = float(args.scale_factor)
         print(f"Manual scale_factor={scale}")
@@ -228,7 +237,9 @@ if __name__ == "__main__":
     parser.add_argument("--start_frame", type=int, default=0,
                         help="Starting frame index (default: 0)")
     parser.add_argument("--scale_factor", default="auto",
-                        help="Translation scale factor. 'auto' scales avg step to ~0.08 (default: auto)")
+                        help="Translation scale factor. 'auto' converts Source units (inches) "
+                             "to meters (x0.0254), preserving real movement speed. "
+                             "Use a float to override (default: auto)")
     parser.add_argument("--fov", type=float, default=106.26,
                         help="Horizontal FOV in degrees (default: 106.26)")
     parser.add_argument("--resolution", type=str, default="1280x720",
