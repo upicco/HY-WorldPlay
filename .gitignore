@@ -141,7 +141,7 @@ outputs/
 *.mov
 *.gif
 # *.png
-*.jpg
+# *.jpg
 *.jpeg
 
 # Temporary files
